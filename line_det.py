@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import time
-import matplotlib.pyplot as plt
 
 def canny(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -53,7 +52,26 @@ def make_coordinates(image,line_parameters):
     x2 = int((y2 - intercept)/slope)
     return np.array([x1,y1,x2,y2])
 
-    
+def find_mid_line(lines):#eklendi
+    lx1,ly1,lx2,ly2 = lines[0]
+    rx1,ry1,rx2,ry2 = lines[1]
+    mx1 = int((lx1+rx1)/2)
+    my1 = int((ly1+ry1)/2)
+    mx2 = int((lx2+rx2)/2)
+    my2 = int((ly2+ry2)/2)
+    return np.array([mx1,my1,mx2,my2])
+
+def find_mid_coordinates(lines): # Bütün y değerlerine karşılık gelen x'leri bul. eklendi
+    x1,y1,x2,y2 = lines
+    slope = (y2-y1) / (x2-x1)
+    coord = np.zeros((2,y1-y2))
+    coord[0][0],coord[1][0] = x2,y2
+    counter = 1
+    for i in range(y2+1,y1):
+        x = x2 + ((i-y2)/slope)
+        coord[0][counter],coord[1][counter] = x,i
+    return coord
+        
 image = cv2.imread("/home/feanor/Desktop/line_detection/line_test3.png") # read the image
 shape = image.shape
 copy_image = np.copy(image)
@@ -63,6 +81,7 @@ Roi = region_of_interest(edge_image) # we don't need to see all images for lane 
 copy_Roi = np.copy(Roi)
 lines = cv2.HoughLinesP(Roi, 2, np.pi/180, 100,np.array([]),minLineLength=40,maxLineGap=10)
 averaged_lines = average_slope_intercept(copy_image,lines)
+middle_line = find_mid_line(averaged_lines) #eklendi
 line_image = display_lines(copy_image,averaged_lines) # averaged_lines or lines
 result = cv2.addWeighted(copy_image, 0.8, line_image, 1, 1)
 end = time.time()
