@@ -3,14 +3,11 @@ import numpy as np
 import time
 
 
-# Goruntu cıktısı 480x640
 def fit_image(image):
     image = image[24:504, :]
     return image
 
 
-# Edge detection işlemi uygulandı.
-# Input: mask image , Output: detected lines
 def canny(image):
     kernel = 5
     blur = cv2.GaussianBlur(image, (kernel, kernel), 0)
@@ -18,7 +15,6 @@ def canny(image):
     return canny
 
 
-# Input: hsv image, Output: Region of interest
 def region_of_interest(image):
     y, x, c = image.shape
     image[0:250, :] = 0
@@ -27,7 +23,6 @@ def region_of_interest(image):
     return Roi
 
 
-# Hough transformdan gelen cıktılar dogrultusunda goruntu uzerınde
 def display_lines(image, lines, mid_line):
     line_image = np.zeros_like(image)
     # display averaged lines
@@ -80,12 +75,10 @@ def make_coordinates(image, line_parameters):
     y2 = int(y1 * (1 / 2))
     x1 = int((y1 - intercept) / slope)
     x2 = int((y2 - intercept) / slope)
-    """"
-    if x1 < 0:
-        x1 = 0
-    elif x1 > 640:
-        x1 = 640
-    """
+    # if x1 < 0:
+    #     x1 = 0
+    # elif x1 > 640:
+    #     x1 = 640
     return np.array([x1, y1, x2, y2])
 
 
@@ -111,64 +104,8 @@ def find_mid_coordinates(lines):
     return coord
 
 
-def find_density(image, threshold):
-    height, width = image.shape
-    right_part = image[250:290, int(width / 2):]
-    left_part = image[250:290, 0:int(width / 2)]
-    r_init, r_last = deleted_lines_coordinates(right_part, threshold)
-    l_init, l_last = deleted_lines_coordinates(left_part, threshold)
-    for i in range(len(r_init)):
-        r_init[i][0] += 250
-        r_last[i][0] += 250
-        r_init[i][1] += 320
-        r_last[i][1] += 320
-    for j in range(len(l_init)):
-        l_init[j][0] += 250
-        l_last[j][0] += 250
-    return r_init, r_last, l_init, l_last
-
-
-def deleted_lines_coordinates(image, threshold):
-    y, x = image.shape
-    init_flag = False
-    total_pixel, sequence = 0, 0
-    current_x, current_y = 0, 0
-    init_output, last_output = [], []
-    init_coord, last_coord = np.zeros(2), np.zeros(2)
-    for i in range(y):
-        detected = False
-        for j in range(x - 1):
-            if image[i][j] == 255:
-                detected = True
-                total_pixel += 1
-                current_y, current_x = i, j
-                if not init_flag:
-                    init_coord[0], init_coord[1] = i, j
-                    init_flag = True
-                if image[i][j + 1] == 0:
-                    break
-        if detected:
-            sequence = 0
-        else:
-            sequence += 1
-        if sequence == 2:
-            if total_pixel < threshold:
-                init_output.append((init_coord[0], init_coord[1]))  # y,x
-                last_output.append((current_y, current_x))  # y,x
-            init_flag = False
-            total_pixel = 0
-    return np.array(init_output), np.array(last_output)
-
-
-def delete_lines(image, r_init, r_last, l_init, l_last):
-    for i in range(len(r_init)):
-        image[r_init[i][0]:r_last[i][0], r_init[i][1] - 10:r_last[i][1]] = 0
-    for j in range(len(l_init)):
-        image[l_init[j][0]:l_last[j][0], l_last[j][1]:l_init[j][1]] = 0
-    return image
-
-
-cap = cv2.VideoCapture("/home/feanor/Desktop/line_detection/test_video2.mp4")
+# cap = cv2.VideoCapture("/home/feanor/Desktop/line_detection/test_video.mp4")
+cap = cv2.VideoCapture("test_video2.mp4")
 frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 counter = 0
 
@@ -185,12 +122,7 @@ while True:
     Roi = region_of_interest(fit)
     low_line = np.array([0, 0, 150])
     up_line = np.array([0, 0, 200])
-    mask = cv2.inRange(Roi, low_line, up_line)
-    copy_mask = np.copy(mask)
-    right_init, right_last, left_init, left_last = find_density(copy_mask, 800)
-    deleted = delete_lines(copy_mask, right_init.astype(int), right_last.astype(int), left_init.astype(int),
-                           left_last.astype(int))
-
+    mask = cv2.inRange(hsv, low_line, up_line)
     """"
     edge_image = canny(mask)  # apply edge detection
     copy_edge = np.copy(edge_image)
@@ -202,18 +134,11 @@ while True:
     """
     end = time.time()
     total_time = end - start
-    print(total_time)
-    # cv2.imshow("Left",left)
-    # cv2.imshow("Right",right)
-    cv2.imshow("Mask", mask)
-    cv2.imshow("Deleted", deleted)
-    cv2.imshow("Original", copy_frame)
-    # cv2.imshow("Original", frame)
-    # cv2.imshow("Right", right)
-    # cv2.imshow("Left", left)
-    # cv2.imshow("Result", result)
-
-    # cv2.imshow("Result", result)
+    # cv2.imshow("Result",result)
+    # cv2.imshow("Original",copy_frame)
+    # cv2.imshow("Edge detection",copy_edge)
+    cv2.imshow("Result", mask)
+    # cv2.imshow("Result",result)
     # # cv2.imshow("Video",gray)
     if cv2.waitKey(25) & 0xFF == ord('q'):
         break
