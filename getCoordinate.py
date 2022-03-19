@@ -36,7 +36,7 @@ def get_coordinate(gray):
     return endpoint_coords
 
 
-cap = cv2.VideoCapture("test_video2.mp4")
+cap = cv2.VideoCapture("park.mp4")
 success, frame = cap.read()
 frame = frame[24:504, :]
 
