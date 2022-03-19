@@ -20,22 +20,6 @@ def region_of_interest(image):
     return Roi
 
 
-def display_lines(image, lines, mid_line):
-    line_image = np.zeros_like(image)
-    # display averaged lines
-    if lines is not None:
-        for line in lines:
-            x1, y1, x2, y2 = line.reshape(4)
-            cv2.line(line_image, (x1, y1), (x2, y2), (0, 0, 255), 5)
-    # display middle line
-    x1, y1, x2, y2 = mid_line.reshape(4)
-    cv2.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 5)
-    # display car'line
-    x1, y1, x2, y2 = 320, y1, 320, y2
-    cv2.line(line_image, (x1, y1), (x2, y2), (255, 0, 0), 5)
-    return line_image
-
-
 def get_coordinate(gray):
     afterMedian = cv2.bilateralFilter(gray, 9, 75, 75)
     thresh = 130
@@ -103,6 +87,32 @@ def find_mid_coordinates(left_coords, right_coords):
     return mid_coords
 
 
+def state_control(coords):
+    length = len(coords)
+    if length > 0:
+        if coords[0][0] <= 10 and coords[length - 1][0] >= 630:
+            state = "DUZ"
+        else:
+            state = "DON"
+    else:
+        state = "DON"
+    return state
+
+
+def find_camera_line(line, image):
+    y, x = image.shape
+    camera_line = []
+    camera_line.append((x//2, y))
+    camera_line.append((x//2, line[1][1]))
+    return camera_line
+
+
+def draw_lines(cam, act, image):
+    cv2.line(image, (cam[0][0], cam[0][1]), (cam[1][0], cam[1][1]), (0, 255, 0), 3)
+    cv2.line(image, (cam[0][0], cam[0][1]), (act[1][0], act[1][1]), (0, 0, 255), 3)
+    return image
+
+
 # cap = cv2.VideoCapture("/home/feanor/Desktop/line_detection/test_video.mp4")
 cap = cv2.VideoCapture("/home/feanor/Desktop/line_detection/test_video2.mp4")
 # cap = cv2.VideoCapture("park.mp4")
@@ -117,6 +127,7 @@ while True:
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     fit = fit_image(gray)
     copy_fit = np.copy(fit)
+    show = np.copy(copy_fit)
     resolution = fit.shape
     copy_frame = np.copy(frame)
     start = time.time()  # start run time
@@ -128,21 +139,23 @@ while True:
     for i in range(0, len(endpoint_coords)):
         cv2.circle(copy_fit, (endpoint_coords[i][0].astype(int), endpoint_coords[i][1].astype(int)), 5, (0, 0, 255),
                    cv2.FILLED)
-    #print(endpoint_coords)
-    if len(endpoint_coords) == 0:
-        print("DON")
-    else:
-        print("DUZ")
+    # print(endpoint_coords)
+    state = state_control(endpoint_coords)
+    print(state)
     left_coords, right_coords = left_right_coordinates(endpoint_coords)
     if len(left_coords) and len(right_coords) >= 2:
         mid_coords = find_mid_coordinates(left_coords, right_coords)
         for i in range(len(mid_coords)):
             cv2.circle(copy_fit, (mid_coords[i][0].astype(int), mid_coords[i][1].astype(int)), 5, (0, 0, 255),
                        cv2.FILLED)
+        cam_line = find_camera_line(mid_coords, copy_fit)
+        show = draw_lines(cam_line, mid_coords, show)
+
     end = time.time()
     total_time = end - start
     # print(total_time)
     cv2.imshow("Result", copy_fit)
+    cv2.imshow("Show", show)
     if cv2.waitKey(25) & 0xFF == ord('q'):
         break
 cap.release()
