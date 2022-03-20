@@ -102,15 +102,30 @@ def state_control(coords):
 def find_camera_line(line, image):
     y, x = image.shape
     camera_line = []
-    camera_line.append((x//2, y))
-    camera_line.append((x//2, line[1][1]))
+    camera_line.append((x // 2, y))
+    camera_line.append((x // 2, line[1][1]))
     return camera_line
 
 
 def draw_lines(cam, act, image):
-    cv2.line(image, (cam[0][0], cam[0][1]), (cam[1][0], cam[1][1]), (0, 255, 0), 3)
-    cv2.line(image, (cam[0][0], cam[0][1]), (act[1][0], act[1][1]), (0, 0, 255), 3)
+    cv2.line(image, (cam[0][0], cam[0][1]), (cam[1][0], cam[1][1]), (0, 255, 0), 2)
+    cv2.line(image, (cam[0][0], cam[0][1]), (act[1][0], act[1][1]), (0, 0, 255), 2)
     return image
+
+
+def find_angle_info(act):
+    x1, y1, x2, y2 = 320, 480, act[1][0], act[1][1]
+    cam_slope = 0
+    act_slope = (y2 - y1) / (x2 - x1)
+    slope = (act_slope - cam_slope) / (1 + cam_slope * act_slope)
+    act_angle = math.atan(slope) * 180 / np.pi
+    cam_angle = 90
+    degree_angle = 180 - (cam_angle - act_angle)
+    if degree_angle > 90:
+        state = "LEFT"
+    else:
+        state = "RIGHT"
+    return degree_angle,state
 
 
 # cap = cv2.VideoCapture("/home/feanor/Desktop/line_detection/test_video.mp4")
@@ -141,7 +156,7 @@ while True:
                    cv2.FILLED)
     # print(endpoint_coords)
     state = state_control(endpoint_coords)
-    print(state)
+    # print(state)
     left_coords, right_coords = left_right_coordinates(endpoint_coords)
     if len(left_coords) and len(right_coords) >= 2:
         mid_coords = find_mid_coordinates(left_coords, right_coords)
@@ -150,7 +165,8 @@ while True:
                        cv2.FILLED)
         cam_line = find_camera_line(mid_coords, copy_fit)
         show = draw_lines(cam_line, mid_coords, show)
-
+        angle, direction = find_angle_info(mid_coords)
+        print(angle)
     end = time.time()
     total_time = end - start
     # print(total_time)
