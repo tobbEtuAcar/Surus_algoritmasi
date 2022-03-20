@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 #-*-coding: utf-8 -*-
  
+from copy import copy
 import cv2
 import numpy as np
 import rospy
 import time
 import torch
+import LineDet
 from ackermann_msgs.msg import AckermannDriveStamped
 from cv_bridge import CvBridge
 from sensor_msgs.msg import LaserScan
@@ -18,8 +20,9 @@ MOD = 'SAG REFERANS'
 MOD_PREV = 'SAG REFERANS'
 DURAKModuBitisZamani = 0.0
 
-model = torch.hub.load('/home/talhaunal/yolov5', 'custom', path='/home/talhaunal/yolov5/best_3Kasım.pt', source='local')
+model = torch.hub.load('/home/talhaunal/yolov5', 'custom', path='/home/talhaunal/yolov5/best_20Mart.pt', source='local')
 #model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+bridge = CvBridge()
 
 # global speed
 # global steering_angle	
@@ -149,47 +152,80 @@ def movement(regions):
     obj.drive.steering_angle = steering_angle
     pub.publish(obj)
 
+def lineDetectionCallback(mesaj):
+    frame = bridge.imgmsg_to_cv2(mesaj,"bgr8")
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray_copy = np.copy(gray)
+    show = np.copy(frame)
+    copy_frame = np.copy(frame)
+    Roi = LineDet.region_of_interest(gray)
+    kernel = 9
+    blur = cv2.GaussianBlur(Roi, (kernel, kernel), 0)
+    copy_Roi = np.copy(blur)
+    endpoint_coords = LineDet.get_coordinate(copy_Roi)
+    for i in range(0, len(endpoint_coords)):
+        cv2.circle(copy_frame, (endpoint_coords[i][0].astype(int), 
+        endpoint_coords[i][1].astype(int)), 5, (0, 0, 255),
+                   cv2.FILLED)
+    duzDonusState = LineDet.state_control(endpoint_coords)
+    left_coords, right_coords = LineDet.left_right_coordinates(endpoint_coords)
+    if len(left_coords) and len(right_coords) >= 2:
+        mid_coords = LineDet.find_mid_coordinates(left_coords, right_coords)
+        for i in range(len(mid_coords)):
+            cv2.circle(copy_frame, (mid_coords[i][0].astype(int), 
+            mid_coords[i][1].astype(int)), 5, (0, 0, 255), cv2.FILLED)
+        cam_line = LineDet.find_camera_line(mid_coords, gray_copy)
+        show = LineDet.draw_lines(cam_line, mid_coords, show)
+        angle, direction = LineDet.find_angle_info(mid_coords)
+        print('Angle: ', angle)
+    
+
+    # cv2.imshow("Linedet", copy_frame)
+    # cv2.imshow("Linedet2", show)
+    cv2.waitKey(1)
+
 def cameraCallback(mesaj):
-        bridge = CvBridge()
-        foto = bridge.imgmsg_to_cv2(mesaj,"bgr8")
-        results = model(foto)
-
-        global MOD
-        global MOD_PREV
-        global DURAKModuBitisZamani
-
-        print('MOD:', MOD)
-        print('****************')
         
-        for *box, conf, cls in results.pred[0]:
+    foto = bridge.imgmsg_to_cv2(mesaj,"bgr8")
+    results = model(foto)
 
-            if(results.names[int(cls)].find('stop1') != -1 and float(f'{conf:.2f}') > 0.83 and MOD != 'DURAK'):
-                MOD_PREV = MOD
-                MOD = 'DURAK'
+    global MOD
+    global MOD_PREV
+    global DURAKModuBitisZamani
 
-                break
-                # print(f'{conf:.2f}')
-            elif(results.names[int(cls)].find('turnRight') != -1 and float(f'{conf:.2f}') > 0.6 and MOD != 'SAG REFERANS'):
-                MOD_PREV = MOD
-                MOD = 'SAG REFERANS'
-                break
+    # print('MOD:', MOD)
+    # print('****************')
+    
+    for *box, conf, cls in results.pred[0]:
 
-            elif(results.names[int(cls)].find('turnLeft') != -1 and float(f'{conf:.2f}') > 0.4 and MOD != 'SOL REFERANS'):
-                MOD_PREV = MOD
-                MOD = 'SOL REFERANS'
-                break
+        if(results.names[int(cls)].find('stop1') != -1 and float(f'{conf:.2f}') > 0.83 and MOD != 'DURAK'):
+            MOD_PREV = MOD
+            MOD = 'DURAK'
 
-            label = f'{results.names[int(cls)]} {conf:.2f}'
-            c1, c2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
+            break
+            # print(f'{conf:.2f}')
+        elif(results.names[int(cls)].find('turnRight') != -1 and float(f'{conf:.2f}') > 0.6 and MOD != 'SAG REFERANS'):
+            MOD_PREV = MOD
+            MOD = 'SAG REFERANS'
+            break
 
-        cv2.imshow("Arac Kamerasi", results.render()[0])
-        #cv2.imshow("Arac Kamerasi", foto)
-        cv2.waitKey(1)
+        elif(results.names[int(cls)].find('turnLeft') != -1 and float(f'{conf:.2f}') > 0.4 and MOD != 'SOL REFERANS'):
+            MOD_PREV = MOD
+            MOD = 'SOL REFERANS'
+            break
+
+        label = f'{results.names[int(cls)]} {conf:.2f}'
+        c1, c2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
+
+    cv2.imshow("Arac Kamerasi", results.render()[0])
+    #cv2.imshow("Arac Kamerasi", foto)
+    cv2.waitKey(1)
 
 if __name__ == '__main__':
     rospy.init_node('drive', anonymous = True)
     rospy.Subscriber('/scan', LaserScan, lidar_callback)
     rospy.Subscriber("/camera/zed/rgb/image_rect_color", Image, cameraCallback)
+    rospy.Subscriber("/camera/zed/rgb/image_rect_color", Image, lineDetectionCallback)
 
     rospy.loginfo("Press CTRL + C for stopping the simulation")
 
