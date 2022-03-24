@@ -13,12 +13,11 @@ def fit_image(image):
 
 
 def region_of_interest(image):
-    y, x, = image.shape
-    image[0:250, :] = 0
-    image[290:480, :] = 0
+    y, x = image.shape
+    image[0:265, :] = 0
+    image[325:480, :] = 0
     Roi = image
     return Roi
-
 
 def get_coordinate(gray):
     afterMedian = cv2.bilateralFilter(gray, 9, 75, 75)
@@ -45,7 +44,7 @@ def get_coordinate(gray):
             found = 0
             for i in range(0, len(endpoint_coords)):
                 if endpoint_coords[i][0] == c:
-                    avg = (endpoint_coords[i][1] + r) / 2
+                    avg = (endpoint_coords[i][1] + r) // 2
                     endpoint_coords[i] = (endpoint_coords[i][0], avg)
                     found = 1
                     break
@@ -90,7 +89,7 @@ def find_mid_coordinates(left_coords, right_coords):
 def state_control(coords):
     length = len(coords)
     if length > 0:
-        if coords[0][0] <= 20 and coords[length - 1][0] >= 620:
+        if coords[0][0] <= 220 and coords[length - 1][0] >= 470:
             state = "DUZ"
         else:
             state = "DON"
@@ -102,14 +101,14 @@ def state_control(coords):
 def find_camera_line(line, image):
     y, x = image.shape
     camera_line = []
-    camera_line.append((x // 2, y))
-    camera_line.append((x // 2, line[1][1]))
+    camera_line.append((x//2, y))
+    camera_line.append((x//2, line[1][1]))
     return camera_line
 
 
 def draw_lines(cam, act, image):
-    cv2.line(image, (cam[0][0], cam[0][1]), (cam[1][0], cam[1][1]), (0, 255, 0), 2)
-    cv2.line(image, (cam[0][0], cam[0][1]), (act[1][0], act[1][1]), (0, 0, 255), 2)
+    cv2.line(image, (cam[0][0], cam[0][1]), (cam[1][0], cam[1][1]), (0, 255, 0), 3)
+    cv2.line(image, (cam[0][0], cam[0][1]), (act[1][0], act[1][1]), (0, 0, 255), 3)
     return image
 
 
@@ -125,55 +124,51 @@ def find_angle_info(act):
         state = "LEFT"
     else:
         state = "RIGHT"
-    return degree_angle, state
+    return degree_angle,state
 
 
-# cap = cv2.VideoCapture("/home/feanor/Desktop/line_detection/test_video.mp4")
-cap = cv2.VideoCapture("/home/feanor/Desktop/line_detection/test_video2.mp4")
-# cap = cv2.VideoCapture("park.mp4")
-frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-counter = 0
+# cap = cv2.VideoCapture("/home/feanor/Desktop/line_detection/test_video2.mp4")
+# frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+# counter = 0
 
-while True:
-    _, frame = cap.read()
-    counter += 1
-    if counter == (frame_count - 1):
-        break
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    xd = np.copy(gray)
-    fit = fit_image(gray)
-    copy_fit = np.copy(fit)
-    show = np.copy(copy_fit)
-    resolution = fit.shape
-    copy_frame = np.copy(frame)
-    start = time.time()  # start run time
-    Roi = region_of_interest(fit)
-    kernel = 9
-    blur = cv2.GaussianBlur(Roi, (kernel, kernel), 0)
-    copy_Roi = np.copy(blur)
-    endpoint_coords = get_coordinate(copy_Roi)
-    for i in range(0, len(endpoint_coords)):
-        cv2.circle(copy_fit, (endpoint_coords[i][0].astype(int), endpoint_coords[i][1].astype(int)), 5, (0, 0, 255),
-                   cv2.FILLED)
-    state = state_control(endpoint_coords)
-    # print(state)
-    left_coords, right_coords = left_right_coordinates(endpoint_coords)
-    if len(left_coords) and len(right_coords) >= 2:
-        mid_coords = find_mid_coordinates(left_coords, right_coords)
-        for i in range(len(mid_coords)):
-            cv2.circle(copy_fit, (mid_coords[i][0].astype(int), mid_coords[i][1].astype(int)), 5, (0, 0, 255),
-                       cv2.FILLED)
-        cam_line = find_camera_line(mid_coords, copy_fit)
-        show = draw_lines(cam_line, mid_coords, frame)
-        angle, direction = find_angle_info(mid_coords)
-        print(direction, angle)
-    end = time.time()
-    total_time = end - start
-    # print(total_time)
-    cv2.imshow("Iskelet Algoritmasi", show)
-    cv2.imshow('Roi', Roi)
-    # cv2.imshow("Show", show)
-    if cv2.waitKey(25) & 0xFF == ord('q'):
-        break
-cap.release()
-cv2.destroyAllWindows()
+# while True:
+#     _, frame = cap.read()
+#     counter += 1
+#     if counter == (frame_count - 1):
+#         break
+#     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#     fit = fit_image(gray)
+#     copy_fit = np.copy(fit)
+#     show = np.copy(copy_fit)
+#     resolution = fit.shape
+#     copy_frame = np.copy(frame)
+#     start = time.time()  
+#     Roi = region_of_interest(fit)
+#     kernel = 9
+#     blur = cv2.GaussianBlur(Roi, (kernel, kernel), 0)
+#     copy_Roi = np.copy(blur)
+#     endpoint_coords = get_coordinate(copy_Roi)
+#     for i in range(0, len(endpoint_coords)):
+#         cv2.circle(copy_fit, (endpoint_coords[i][0].astype(int), endpoint_coords[i][1].astype(int)), 5, (0, 0, 255),
+#                    cv2.FILLED)
+#     # print(endpoint_coords)
+#     state = state_control(endpoint_coords)
+#     print(state)
+#     left_coords, right_coords = left_right_coordinates(endpoint_coords)
+#     if len(left_coords) and len(right_coords) >= 2:
+#         mid_coords = find_mid_coordinates(left_coords, right_coords)
+#         for i in range(len(mid_coords)):
+#             cv2.circle(copy_fit, (mid_coords[i][0].astype(int), mid_coords[i][1].astype(int)), 5, (0, 0, 255),
+#                        cv2.FILLED)
+#         cam_line = find_camera_line(mid_coords, copy_fit)
+#         show = draw_lines(cam_line, mid_coords, show)
+
+#     end = time.time()
+#     total_time = end - start
+#     # print(total_time)
+#     cv2.imshow("Result", copy_fit)
+#     cv2.imshow("Show", show)
+#     if cv2.waitKey(25) & 0xFF == ord('q'):
+#         break
+# cap.release()
+# cv2.destroyAllWindows()
