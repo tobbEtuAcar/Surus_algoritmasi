@@ -60,17 +60,17 @@ def left_right_coordinates(coords):
     right = []
     switch = 0
     for i in range(length - 1):
-        if coords[i + 1][0] - coords[i][0] < 250:
-            if switch == 0:
-                left.append(coords[i])
-            else:
-                right.append(coords[i])
-        else:
+        if coords[i + 1][0] - coords[i][0] > 220 and np.abs(coords[i+1][1] - coords[i][1]) < 10:
             if switch == 0:
                 left.append(coords[i])
             else:
                 right.append(coords[i])
             switch = 1
+        else:
+            if switch == 0:
+                left.append(coords[i])
+            else:
+                right.append(coords[i])
     if switch == 1:  # Son elemanı ekle.
         right.append(coords[length - 1])
     return left, right
@@ -124,7 +124,7 @@ def find_angle_info(act):
         state = "LEFT"
     else:
         state = "RIGHT"
-    return degree_angle,state
+    return degree_angle, state
 
 
 # cap = cv2.VideoCapture("/home/feanor/Desktop/line_detection/test_video2.mp4")
