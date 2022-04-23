@@ -19,7 +19,6 @@ laser_data = list()
 flag = 0
 reset = 0
 counter = 0
-counterDevam = 0
 counterPark = 0
 MOD = 'SAG REFERANS'
 MOD_PREV = 'SAG REFERANS'
@@ -63,15 +62,11 @@ def movement(angle, direction):
     global reset
     global MOD_PREV
     global stop_flag, stop_counter
-    global counterDevam
     global counterPark
 
 
-    if MOD == 'DEVAM':
-        counterDevam += 1
-    elif MOD == 'PARK':
+    if MOD == 'PARK':
         counterPark += 1
-    print("DEVAM COUNTER",counterDevam)
     # # print("PARK COUNTER",counterPark)
 
     if MOD == 'SAG REFERANS':
@@ -136,10 +131,6 @@ def movement(angle, direction):
             flag = 0
             counter = 0
 
-        ## print(angle)
-        # # print('counter')
-        # # print(counter)
-        # # print(flag)
         if direction == 'DUZ' and flag == 0:
             counter = 0
 
@@ -199,43 +190,38 @@ def movement(angle, direction):
     elif MOD == 'DURAK':
         flag = 0
         counter = 0
-        stop_counter += 1
-        # # print(stop_counter)
-        # # print(stop_flag)
-        # # print(speed)
-        if stop_counter < 160:
-            if angle >= 178 or angle <= 2:
-                speed = 1.3
-                steering_angle = 0
-                # print('duz')
+        if angle >= 178 or angle <= 2:
+            speed = 1.3
+            steering_angle = 0
+            # print('duz')
+        
+        elif angle < 178 and angle > 90:
+            speed = 1.3
+            angleBolum = 178 - angle
+            # print('sola')
+            steering_angle = 0.005 * angleBolum
             
-            elif angle < 178 and angle > 90:
-                speed = 1.3
-                angleBolum = 178 - angle
-                # print('sola')
-                steering_angle = 0.005 * angleBolum
-                
-            elif angle > 2 and angle < 90: 
-                speed = 1.3
-                angleBolum = 178 - (180- angle)
-                # print('sağa')
-                steering_angle = -0.005 * angleBolum
+        elif angle > 2 and angle < 90: 
+            speed = 1.3
+            angleBolum = 178 - (180- angle)
+            # print('sağa')
+            steering_angle = -0.005 * angleBolum
 
-        if stop_counter >= 160 and stop_flag < 250:
-            speed = 0.0
-            stop_flag += 1
-            if stop_flag >= 250:
-                stop_counter = 0
-                MOD = 'SOL REFERANS'
+    elif MOD == 'DURAK_2':
+        time.sleep(1)
+        speed = 0.0
+        time.sleep(10)    
+        MOD = 'SOL REFERANS'
+
     elif MOD == 'DEVAM':
-
         flag = 0
         if angle >= 178 or angle <= 2:
-                speed = 1.3
-                steering_angle = 0
-                # print('duz')
+            speed = 1.3
+            steering_angle = 0
+            # print('duz')
             
         elif angle < 178 and angle > 90:
+        # stop_counter = 0    
             speed = 1.3
             angleBolum = 178 - angle
             # print('sola')
@@ -251,9 +237,9 @@ def movement(angle, direction):
         if(counterPark < 155):
             flag = 0
             if angle >= 178 or angle <= 2:
-                    speed = 1.3
-                    steering_angle = 0
-                    # print('duz')
+                speed = 1.3
+                steering_angle = 0
+                # print('duz')
                 
             elif angle < 178 and angle > 90:
                 speed = 1.3
@@ -274,7 +260,8 @@ def movement(angle, direction):
             steering_angle -= 0.1
         else: 
             steering_angle = 0
-
+    print(MOD)
+    print('*******')
     obj.drive.speed = speed
     obj.drive.steering_angle = steering_angle
     pub.publish(obj)
@@ -324,8 +311,8 @@ def lineDetectionCallback(mesaj):
         # print('Direction: DON')
         movement(-1,'DON')
 
-    cv2.imshow("Skeleton Endpoints", copy_frame)
-    cv2.imshow("Skeleton Lines", show)
+    # cv2.imshow("Skeleton Endpoints", copy_frame)
+    # cv2.imshow("Skeleton Lines", show)
     # cv2.imshow("Roi", Roi)
     cv2.waitKey(1)
 
@@ -336,49 +323,61 @@ def cameraCallback(mesaj):
 
     global MOD
     global MOD_PREV
-    global counterDevam
     global counterPark
 
     # print('MOD:', MOD)
     # print('****************')
 
-    if(len(results.pred[0]) == 0 and MOD == 'DEVAM' and counterDevam > 665):
-        MOD = 'SOL REFERANS'
+    # if(len(results.pred[0]) == 0 and MOD == 'DEVAM' and counterDevam > 665):
+    #     MOD = 'SOL REFERANS'
 
-    for *box, conf, cls in results.pred[0]:
-        # # print(results.pandas().xyxy[0])
-        ## print(results.pandas().xyxy[0])
-        sign_num = len(results.pandas().xyxy[0])
-        for i in range(sign_num):
-            label = results.pandas().xyxy[0].name[i]
-            raw_conf = results.pandas().xyxy[0].confidence[i]
-            conf = float(f'{raw_conf:.2}')
-            # # print("Label: ", label, "Conf:", conf)
-            if label == 'durak' and conf >= 0.95 and MOD != 'DURAK':
-                # print(conf)
-                MOD_PREV = MOD
-                MOD = 'DURAK'
-                break
+    sign_num = len(results.pandas().xyxy[0])
+    print('tabela sayisi:', sign_num)
+    for i in range(sign_num):
+        x_max = results.pandas().xyxy[0].xmax[i]
+        x_min = results.pandas().xyxy[0].xmin[i]
+        y_max = results.pandas().xyxy[0].ymax[i]
+        y_min = results.pandas().xyxy[0].ymin[i]
+        bbox_width = x_max - x_min
+        bbox_height = y_max - y_min
+        bbox_area = int(bbox_width * bbox_height)
+        print('Bounding Box Area: ', bbox_area)
+        print('X_min: ', x_min)
+        print('X_max: ', x_max)
+        
+        label = results.pandas().xyxy[0].name[i]
+        raw_conf = results.pandas().xyxy[0].confidence[i]
+        conf = float(f'{raw_conf:.2}')
+        print(conf)
+        if label == 'durak' and conf >= 0.95 and MOD != 'DURAK':
+            MOD_PREV = MOD
+            MOD = 'DURAK'
+            break
+        elif label == 'durak' and x_max > 636 and x_min > 550 and MOD == 'DURAK':
+            MOD_PREV = MOD
+            MOD = 'DURAK_2'
+            break
+        elif bbox_area < 800 or x_min < 3 or x_max > 638:
+            print("Ignored Label:", label)
+            continue
+        elif label == 'sola_don' and conf >= 0.80 and MOD != 'SOL REFERANS':
+            MOD_PREV = MOD
+            MOD = 'SOL REFERANS'
+            break
+        elif (label == 'sola_donulmez' or label == 'saga_donulmez') and conf >= 0.93 and MOD != 'DEVAM':
+            MOD_PREV = MOD
+            MOD = 'DEVAM'
+            break
+        elif label == 'saga_don' and conf >= 0.93 and MOD != 'SAG REFERANS':
+            MOD_PREV = MOD
+            MOD = 'SAG REFERANS'
+            break
+        elif label == 'park'  and conf >= 0.93 and MOD != 'PARK':
+            MOD_PREV = MOD
+            MOD = 'PARK'
+            break
 
-            elif label == 'sola_don' and conf >= 0.80 and MOD != 'SOL REFERANS':
-                counterDevam = 0
-                MOD_PREV = MOD
-                MOD = 'SOL REFERANS'
-                break
-            elif (label == 'sola_donulmez' or label == 'saga_donulmez') and conf >= 0.93 and MOD != 'DEVAM':
-                MOD_PREV = MOD
-                MOD = 'DEVAM'
-                break
-            elif label == 'saga_don' and conf >= 0.93 and MOD != 'SAG REFERANS':
-                counterDevam = 0
-                MOD_PREV = MOD
-                MOD = 'SAG REFERANS'
-                break
-            elif label == 'park'  and conf >= 0.93 and MOD != 'PARK':
-                MOD_PREV = MOD
-                MOD = 'PARK'
-                break
-
+        print('****************')
         # if results.names[int(cls)].find('durak') != -1 and float(f'{conf:.2f}') > 0.85 and MOD != 'DURAK':
         #     MOD_PREV = MOD
         #     MOD = 'DURAK'
@@ -415,4 +414,3 @@ if __name__ == '__main__':
     obj = AckermannDriveStamped()
 
     rospy.spin()
-80
